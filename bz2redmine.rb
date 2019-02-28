@@ -200,6 +200,7 @@ class BugzillaToRedmine
       login_name = row[1]
       real_name = row[2]
       disabled_text = row[3]
+      extern_id = row[4]
       if real_name.nil?
         (last_name, first_name) = ['empty', 'empty']
       else
@@ -219,14 +220,18 @@ class BugzillaToRedmine
         self.log("Searching LDAP for %s" % login_name)
         result = ldap.search(:filter => search_filter, :attributes => [REDMINE_LDAP['login_attr']], :return_result => true) do |user|
           self.log("User found in LDAP")
-          self.red_exec_sql("INSERT INTO users (id, login, mail, firstname, lastname, language, mail_notification, status, type, auth_source_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            user_id, user[REDMINE_LDAP['login_attr']].first, login_name, last_name, first_name, 'en', 'only_my_events', status, 'User', REDMINE_DEFAULT_AUTH_SOURCE_ID)
+          self.red_exec_sql("INSERT INTO users (id, login, firstname, lastname, language, mail_notification, status, type, auth_source_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            user_id, user[REDMINE_LDAP['login_attr']].first, last_name, first_name, 'en', 'only_my_events', status, 'User', REDMINE_DEFAULT_AUTH_SOURCE_ID)
+          self.red_exec_sql("INSERT INTO email_addresses (user_id, address, is_default, created_on, updated_on) VALUES (?, ?, 1, now(), now())",
+            user_id, login_name)
 	end
       end
 
       if result.nil? or extern_id.nil?
-        self.red_exec_sql("INSERT INTO users (id, login, mail, firstname, lastname, language, mail_notification, status, hashed_password, type, salt) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          user_id, login_name, login_name, last_name, first_name, 'en', 'only_my_events', status, @defaultPassword, 'User', @passwordSalt)
+        self.red_exec_sql("INSERT INTO users (id, login, firstname, lastname, language, mail_notification, status, hashed_password, type, salt) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          user_id, login_name, last_name, first_name, 'en', 'only_my_events', status, @defaultPassword, 'User', @passwordSalt)
+        self.red_exec_sql("INSERT INTO email_addresses (user_id, address, is_default, created_on, updated_on) VALUES (?, ?, 1, now(), now())",
+          user_id, login_name)
       end
 
       other = """---
